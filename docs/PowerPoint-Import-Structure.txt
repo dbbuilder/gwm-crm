@@ -1,0 +1,251 @@
+POWERPOINT SLIDE STRUCTURE FOR IMPORT
+==========================================
+
+Instructions: Copy each slide's content into PowerPoint slides. Each "SLIDE X:" section becomes a separate slide.
+
+SLIDE 1: TITLE SLIDE
+--------------------
+Title: GWM CRM
+Subtitle: Government Opportunity Management System
+Sub-subtitle: A Modern, FedRAMP-Compliant Alternative to DelTek GovWin
+
+Bullet Points:
+• Multi-tenant SaaS Architecture
+• Enterprise-Scale Opportunity Management  
+• Modern Technology Stack
+• Cost-Effective Government Contracting Solution
+
+SLIDE 2: EXECUTIVE SUMMARY
+--------------------------
+Title: Project Vision & Mission
+
+Vision:
+Create an accessible, cloud-agnostic government contracting opportunity management CRM that enables contractors to effectively manage their selected pursuits from initial selection through award.
+
+Mission:
+Deliver a comprehensive opportunity management platform that enables government contractors of all sizes to effectively track selected opportunities as projects, manage pursuit teams, coordinate capture activities, and win contracts.
+
+Key Value Proposition:
+• 50-70% cost savings compared to DelTek GovWin
+• Modern, intuitive user experience
+• FedRAMP-compliant security
+• Enterprise-scale performance
+
+SLIDE 3: MARKET OPPORTUNITY & TARGET CUSTOMERS
+----------------------------------------------
+Title: Target Market Analysis
+
+Primary Target Segments:
+• Enterprise Government Contractors (500+ employees)
+  - Managing large-scale opportunity pursuits
+  - Need enterprise-grade functionality
+• Defense Contractors requiring FedRAMP compliance
+  - NIST SP 800-171 and security requirements
+• High-Volume Pursuit Organizations (1000+ concurrent projects)
+  - Need scalable pipeline management
+• Companies with Enterprise Authentication (SAML integration)
+  - Corporate identity system requirements
+
+Market Pain Points:
+• DelTek GovWin is expensive and outdated
+• Legacy systems lack modern UX
+• Limited API integration capabilities
+• Poor mobile experience
+
+SLIDE 4: KEY SYSTEM DIFFERENTIATORS
+-----------------------------------
+Title: What Makes GWM CRM Unique
+
+Opportunity Management Focus:
+• NOT a master opportunities database
+• Manages selected opportunities as trackable projects
+• Continuous synchronization with internal APIs
+• Version-based conflict resolution
+
+Enterprise Features:
+• Multi-tenant SaaS with per-tenant isolation
+• Supports 500+ users per tenant
+• Handles 1000+ opportunity projects per tenant
+• Comprehensive RBAC (7 distinct role levels)
+
+Modern Technology:
+• Built with cutting-edge stack
+• API-first architecture
+• Mobile-first responsive design
+• Real-time collaboration features
+
+SLIDE 5: TECHNOLOGY STACK & ARCHITECTURE
+----------------------------------------
+Title: Modern, Scalable Technology Foundation
+
+Database Layer:
+• PostgreSQL 15+ with advanced JSON support
+• pgBouncer for connection pooling
+• Multi-tenant architecture with Row Level Security
+
+Application Layer:
+• Prisma ORM with TypeScript for type-safety
+• tRPC for end-to-end typesafe APIs
+• Next.js with React 18+ for SSR capabilities
+
+Frontend:
+• React with modern hooks and context
+• shadcn/ui for consistent, accessible components
+• Tailwind CSS for responsive design
+
+Infrastructure:
+• S3-compatible storage for documents
+• Redis for caching and sessions
+• Docker containerization for cloud-agnostic deployment
+
+SLIDE 6: CORE FUNCTIONALITY OVERVIEW
+------------------------------------
+Title: Comprehensive Opportunity Management Platform
+
+1. Opportunity Project Management:
+• Convert opportunities from company platform into CRM projects
+• Visual kanban pipeline (Phases 0-6 + Award Results)
+• Real-time synchronization with external APIs
+• Complete version history and audit trails
+
+2. Contact & Organization Management:
+• Hierarchical organization structures
+• Complete contact interaction timelines
+• Automated duplicate detection
+• Government agency relationship mapping
+
+3. Integrated Document Management:
+• Hybrid internal/external document storage
+• Automatic synchronization from external sources
+• Version control with change tracking
+• Role-based access controls
+
+4. Capture & Proposal Management:
+• Go/no-go decision workflows
+• Resource planning and team coordination
+• Compliance tracking and review workflows
+• Timeline management with deadline monitoring
+
+SLIDE 7: ADVANCED FEATURES & AI CAPABILITIES
+--------------------------------------------
+Title: Next-Generation CRM Features
+
+AI-Powered Capabilities:
+• Smart Project Scoring - AI-driven win probability analysis
+• Natural Language Search - Conversational querying across projects
+• Automated Change Insights - AI-generated impact summaries
+• Predictive Analytics - Win probability modeling
+• Content Generation - AI-assisted capture plan creation
+
+Workflow Automation:
+• No-Code Workflow Builder - Visual process automation
+• External Change Triggers - Automated workflows from API updates
+• Task Automation - Smart assignment based on milestones
+• Reporting Automation - Scheduled report generation
+
+Analytics & Reporting:
+• Customizable Dashboards - Real-time KPI monitoring
+• Pipeline Analytics - Win rate and performance metrics
+• 40+ Standard Reports - Grid-style slice-and-dice analysis
+• Export Capabilities - Excel, Word, PDF formats
+
+SLIDE 8: EXTERNAL API INTEGRATION STRATEGY
+------------------------------------------
+Title: Seamless Multi-Source Data Integration
+
+Internal API Integration:
+• Company Platform API - Primary opportunity source
+• Versioned Endpoints - /v###/ URL structure support
+• Per-Tenant Authentication - FedRAMP-compliant isolation
+• Hourly Polling - Light change detection
+• Version Management - Complete change history
+
+Government API Sources:
+• SAM.gov - Contract Opportunities API (4,000 calls/hour)
+• FPDS - Federal Procurement Data System
+• GSA eBuy - Schedule opportunity identification
+• Other Sources - Configurable external integrations
+
+Integration Features:
+• Intelligent Rate Limiting - Dynamic compliance per API
+• Robust Error Handling - Exponential backoff with circuit breakers
+• Queue Management - Background job processing
+• Real-time Monitoring - API health and performance tracking
+
+SLIDE 9: SECURITY & COMPLIANCE FRAMEWORK
+----------------------------------------
+Title: FedRAMP-Ready Security Implementation
+
+FedRAMP Compliance:
+• Moderate Baseline Controls - NIST SP 800-53 compliance
+• Continuous Monitoring - Ongoing security assessment
+• Data Residency - FedRAMP authorized facilities only
+• Security Documentation - Complete POAM and SSP
+
+Additional Compliance:
+• NIST SP 800-171 - CUI handling requirements
+• SOC 2 Type II - Security and availability controls
+• FISMA - Federal information security requirements
+• CMMC Level 2-3 - Future cybersecurity requirements
+
+Security Features:
+• Multi-Factor Authentication - TOTP, SMS, backup codes
+• Comprehensive RBAC - 7 role levels with granular permissions
+• Encryption - AES-256 at rest, TLS 1.3 in transit
+• Complete Audit Trails - Every action logged immutably
+
+SLIDE 10: DATABASE ARCHITECTURE & DATA MODEL
+--------------------------------------------
+Title: Enterprise-Scale Multi-Tenant Database Design
+
+Core Entities (20+ Tables):
+• Tenant Management - Multi-tenant foundation
+• User & Authentication - RBAC with session management
+• Opportunity Projects - Central project management
+• External Data Integration - API synchronization
+• Contact & Organization - Relationship management
+• Document Management - Hybrid storage system
+• Audit & Compliance - Complete change tracking
+
+Performance Features:
+• Multi-schema Design - Logical separation (public/audit)
+• Strategic Indexing - Optimized for enterprise queries
+• Row Level Security - Tenant data isolation
+• Full-text Search - PostgreSQL native search
+• Version History - Complete change auditing
+
+Scalability Design:
+• Supports 500+ concurrent users per tenant
+• Handles 1000+ opportunity projects per tenant
+• 10M+ documents across all tenants
+• Auto-scaling with read replicas
+
+[Continue with remaining slides...]
+
+SLIDE 24: CONCLUSION & NEXT STEPS
+---------------------------------
+Title: Project Summary & Immediate Actions
+
+Project Readiness:
+• Complete Requirements - 73-page comprehensive specification
+• Technical Architecture - Production-ready design and database schema
+• Implementation Roadmap - 18-month detailed development plan
+• Risk Assessment - Comprehensive mitigation strategies
+• Business Case - Clear ROI and competitive advantages
+
+Immediate Next Steps:
+1. Stakeholder Approval - Executive sign-off on project initiation
+2. Team Assembly - Recruit core development team
+3. Infrastructure Setup - Establish development and CI/CD environments
+4. Phase 1 Kickoff - Begin foundation development (database and authentication)
+5. Customer Validation - Engage early adopter customers for requirements validation
+
+Success Factors:
+• Executive Sponsorship - Strong leadership support and vision
+• Customer Focus - Continuous user feedback and iteration
+• Quality First - Uncompromising commitment to enterprise quality
+• Security Priority - FedRAMP compliance as foundational requirement
+• Agile Delivery - Iterative development with regular releases
+
+Call to Action:
+Ready to transform government contracting opportunity management with a modern, cost-effective, and compliant solution that delivers real business value.
