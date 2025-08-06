@@ -1,0 +1,708 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema", "views", "fullTextSearch", "fullTextIndex"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DATABASE_DIRECT_URL")
+  schemas  = ["public", "audit"]
+}
+
+// ================================
+// MULTI-TENANT FOUNDATION
+// ================================
+
+model Tenant {
+  id                String    @id @default(cuid())
+  name              String
+  slug              String    @unique
+  domain            String?   @unique
+  settings          Json?
+  subscriptionTier  String    @default("standard")
+  maxUsers          Int       @default(100)
+  maxProjects       Int       @default(500)
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  users                     User[]
+  opportunityProjects       OpportunityProject[]
+  organizations             Organization[]
+  contacts                  Contact[]
+  documents                 Document[]
+  capturePlans              CapturePlan[]
+  proposals                 Proposal[]
+  activities                Activity[]
+  externalOpportunitySources ExternalOpportunitySource[]
+  pollingConfigurations     PollingConfiguration[]
+  auditLogs                 AuditLog[]
+
+  @@map("tenants")
+  @@schema("public")
+}
+
+// ================================
+// USER MANAGEMENT & AUTHENTICATION
+// ================================
+
+model User {
+  id                String    @id @default(cuid())
+  tenantId          String
+  email             String    @unique
+  firstName         String
+  lastName          String
+  title             String?
+  department        String?
+  phoneNumber       String?
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
+  emailVerifiedAt   DateTime?
+  mfaEnabled        Boolean   @default(false)
+  mfaSecret         String?
+  passwordHash      String?
+  samlSubject       String?   @unique
+  preferences       Json?
+  timezone          String    @default("UTC")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  createdBy         String?
+  updatedBy         String?
+
+  // Relations
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoles         UserRole[]
+  userSessions      UserSession[]
+  createdOpportunityProjects OpportunityProject[] @relation("OpportunityProjectCreatedBy")
+  updatedOpportunityProjects OpportunityProject[] @relation("OpportunityProjectUpdatedBy")
+  assignedOpportunityProjects OpportunityProjectAssignment[]
+  createdContacts   Contact[] @relation("ContactCreatedBy")
+  updatedContacts   Contact[] @relation("ContactUpdatedBy")
+  uploadedDocuments Document[]
+  createdActivities Activity[] @relation("ActivityCreatedBy")
+  updatedActivities Activity[] @relation("ActivityUpdatedBy")
+  assignedActivities Activity[] @relation("ActivityAssignedTo")
+  createdCapturePlans CapturePlan[] @relation("CapturePlanCreatedBy")
+  updatedCapturePlans CapturePlan[] @relation("CapturePlanUpdatedBy")
+  createdProposals  Proposal[] @relation("ProposalCreatedBy")
+  updatedProposals  Proposal[] @relation("ProposalUpdatedBy")
+  auditLogs         AuditLog[]
+  permissionAudits  PermissionAudit[]
+  opportunityProjectOverrides OpportunityProjectOverride[]
+
+  @@map("users")
+  @@schema("public")
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions Json
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  userRoles   UserRole[]
+
+  @@map("roles")
+  @@schema("public")
+}
+
+model UserRole {
+  id       String @id @default(cuid())
+  userId   String
+  roleId   String
+  grantedAt DateTime @default(now())
+  grantedBy String?
+
+  // Relations
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role     Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@map("user_roles")
+  @@schema("public")
+}
+
+model UserSession {
+  id                String    @id @default(cuid())
+  userId            String
+  sessionTokenHash  String    @unique
+  createdAt         DateTime  @default(now())
+  lastActivityAt    DateTime  @default(now())
+  ipAddress         String?
+  userAgent         String?
+  isActive          Boolean   @default(true)
+  terminatedAt      DateTime?
+  terminationReason String?
+  mfaVerified       Boolean   @default(false)
+  permissionsSnapshot Json?
+
+  // Relations
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+  @@schema("public")
+}
+
+// ================================
+// EXTERNAL OPPORTUNITY SOURCES
+// ================================
+
+model ExternalOpportunitySource {
+  id                String    @id @default(cuid())
+  tenantId          String
+  sourceName        String
+  sourceType        String    // "sam_gov", "govwin_iq", "fpds", "gsa_ebuy", "internal_api"
+  apiEndpoint       String?
+  authenticationType String?  // "api_key", "oauth2", "basic_auth"
+  apiKeyEncrypted   String?
+  rateLimitPerHour  Int       @default(1000)
+  lastSyncTimestamp DateTime?
+  connectionStatus  String    @default("disconnected") // "connected", "disconnected", "error"
+  errorLog          String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  // Relations
+  tenant            Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  opportunityProjects OpportunityProject[]
+  pollingConfigurations PollingConfiguration[]
+  apiIntegrationLogs ApiIntegrationLog[]
+
+  @@map("external_opportunity_sources")
+  @@schema("public")
+}
+
+// ================================
+// OPPORTUNITY PROJECT MANAGEMENT
+// ================================
+
+model OpportunityProject {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  projectName               String
+  internalReferenceNumber   String?
+  externalSourceId          String
+  externalOpportunityId     String
+  externalOpportunityUrl    String?
+  solicitationNumber        String?
+  agencyName                String?
+  contractingOffice         String?
+  projectStatus             String    @default("active") // "active", "inactive", "won", "lost", "cancelled"
+  pipelineStage             String    @default("identified") // "identified", "qualified", "proposal", "negotiation", "closed"
+  priorityLevel             String    @default("medium") // "low", "medium", "high", "critical"
+  winProbabilityScore       Int?      // 0-100
+  strategicValueScore       Int?      // 0-100
+  assignedCaptureManagerId  String?
+  estimatedValue            Decimal?
+  awardDate                 DateTime?
+  responseDeadline          DateTime?
+  lastSyncedAt              DateTime?
+  syncStatus                String    @default("pending") // "pending", "syncing", "synced", "error"
+  syncErrorMessage          String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  createdBy                 String?
+  updatedBy                 String?
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  externalSource            ExternalOpportunitySource @relation(fields: [externalSourceId], references: [id])
+  assignedCaptureManager    User?     @relation("OpportunityProjectCreatedBy", fields: [assignedCaptureManagerId], references: [id])
+  creator                   User?     @relation("OpportunityProjectCreatedBy", fields: [createdBy], references: [id])
+  updater                   User?     @relation("OpportunityProjectUpdatedBy", fields: [updatedBy], references: [id])
+  
+  // Child Relations
+  externalOpportunityData   ExternalOpportunityData[]
+  opportunityProjectOverrides OpportunityProjectOverride[]
+  teamAssignments           OpportunityProjectAssignment[]
+  documents                 Document[]
+  activities                Activity[]
+  capturePlans              CapturePlan[]
+  proposals                 Proposal[]
+  externalDataChanges       ExternalDataChange[]
+  pollingConfigurations     PollingConfiguration[]
+
+  @@unique([tenantId, externalSourceId, externalOpportunityId])
+  @@map("opportunity_projects")
+  @@schema("public")
+}
+
+model ExternalOpportunityData {
+  id                      String    @id @default(cuid())
+  opportunityProjectId    String
+  dataSnapshotTimestamp   DateTime  @default(now())
+  title                   String?
+  description             String?
+  opportunityType         String?
+  setAsideType            String?
+  naicsCodes              String[]  @default([])
+  estimatedValue          Decimal?
+  postingDate             DateTime?
+  responseDueDate         DateTime?
+  amendmentNumber         String?
+  solicitationStatus      String?
+  rawJsonData             Json      // Complete external API response
+  isCurrentVersion        Boolean   @default(true)
+  changeDetectedAt        DateTime?
+  createdAt               DateTime  @default(now())
+
+  // Relations
+  opportunityProject      OpportunityProject @relation(fields: [opportunityProjectId], references: [id], onDelete: Cascade)
+
+  @@map("external_opportunity_data")
+  @@schema("public")
+}
+
+model OpportunityProjectOverride {
+  id                      String    @id @default(cuid())
+  opportunityProjectId    String
+  fieldName               String
+  overrideValue           String
+  originalExternalValue   String?
+  overrideReason          String?
+  isActive                Boolean   @default(true)
+  createdAt               DateTime  @default(now())
+  createdBy               String
+
+  // Relations
+  opportunityProject      OpportunityProject @relation(fields: [opportunityProjectId], references: [id], onDelete: Cascade)
+  creator                 User      @relation(fields: [createdBy], references: [id])
+
+  @@unique([opportunityProjectId, fieldName, isActive])
+  @@map("opportunity_project_overrides")
+  @@schema("public")
+}
+
+model OpportunityProjectAssignment {
+  id                      String    @id @default(cuid())
+  opportunityProjectId    String
+  userId                  String
+  role                    String    // "capture_manager", "proposal_manager", "team_member", "reviewer"
+  assignedAt              DateTime  @default(now())
+  assignedBy              String?
+  isActive                Boolean   @default(true)
+
+  // Relations
+  opportunityProject      OpportunityProject @relation(fields: [opportunityProjectId], references: [id], onDelete: Cascade)
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([opportunityProjectId, userId, role])
+  @@map("opportunity_project_assignments")
+  @@schema("public")
+}
+
+// ================================
+// CONTACT & ORGANIZATION MANAGEMENT
+// ================================
+
+model Organization {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  name                      String
+  dunsNumber                String?
+  samUniqueId               String?
+  cageCode                  String?
+  address                   Json?     // Structured address
+  phone                     String?
+  email                     String?
+  website                   String?
+  organizationType          String?   // "government", "prime_contractor", "subcontractor", "vendor"
+  sizeStandards             String?
+  socioeconomicCertifications String[] @default([])
+  parentOrganizationId      String?   // Self-referencing for hierarchies
+  isActive                  Boolean   @default(true)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  createdBy                 String?
+  updatedBy                 String?
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentOrganization        Organization? @relation("OrganizationHierarchy", fields: [parentOrganizationId], references: [id])
+  childOrganizations        Organization[] @relation("OrganizationHierarchy")
+  contacts                  Contact[]
+
+  @@map("organizations")
+  @@schema("public")
+}
+
+model Contact {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  organizationId            String?
+  firstName                 String
+  lastName                  String
+  title                     String?
+  email                     String?
+  phone                     String?
+  linkedinUrl               String?
+  contactType               String?   // "government", "contractor", "vendor", "other"
+  decisionMakerLevel        String?   // "executive", "manager", "staff", "technical"
+  notes                     String?
+  tags                      String[]  @default([])
+  lastContactDate           DateTime?
+  isActive                  Boolean   @default(true)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  createdBy                 String?
+  updatedBy                 String?
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  organization              Organization? @relation(fields: [organizationId], references: [id])
+  creator                   User?     @relation("ContactCreatedBy", fields: [createdBy], references: [id])
+  updater                   User?     @relation("ContactUpdatedBy", fields: [updatedBy], references: [id])
+  activities                Activity[]
+
+  @@map("contacts")
+  @@schema("public")
+}
+
+// ================================
+// DOCUMENT MANAGEMENT
+// ================================
+
+model Document {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  opportunityProjectId      String?
+  name                      String
+  filePath                  String
+  fileSize                  BigInt
+  mimeType                  String
+  description               String?
+  documentType              String    // "solicitation", "amendment", "qna", "proposal", "capture_plan", "presentation", "other"
+  documentSource            String    // "internal", "external"
+  externalDocumentId        String?
+  externalSyncTimestamp     DateTime?
+  versionNumber             String    @default("1.0")
+  accessLevel               String    @default("team") // "public", "team", "restricted", "confidential"
+  tags                      String[]  @default([])
+  isSyncedFromExternal      Boolean   @default(false)
+  isActive                  Boolean   @default(true)
+  uploadDate                DateTime  @default(now())
+  uploadedBy                String
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  opportunityProject        OpportunityProject? @relation(fields: [opportunityProjectId], references: [id])
+  uploader                  User      @relation(fields: [uploadedBy], references: [id])
+  documentAssociations      DocumentAssociation[]
+
+  @@map("documents")
+  @@schema("public")
+}
+
+model DocumentAssociation {
+  id                        String    @id @default(cuid())
+  documentId                String
+  entityType                String    // "opportunity_project", "contact", "organization", "activity"
+  entityId                  String
+  associationType           String    // "primary", "reference", "attachment"
+  notes                     String?
+  createdAt                 DateTime  @default(now())
+  createdBy                 String
+
+  // Relations
+  document                  Document  @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, entityType, entityId])
+  @@map("document_associations")
+  @@schema("public")
+}
+
+// ================================
+// CAPTURE MANAGEMENT
+// ================================
+
+model CapturePlan {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  opportunityProjectId      String
+  planName                  String
+  status                    String    @default("draft") // "draft", "active", "completed", "cancelled"
+  goNoGoDecision            String?   // "go", "no_go", "pending"
+  decisionDate              DateTime?
+  decisionRationale         String?
+  winStrategy               String?
+  competitiveAnalysis       String?
+  externalDataConsiderations String?
+  resourceRequirements      Json?
+  timeline                  Json?
+  externalDeadlines         Json?
+  lastExternalSync          DateTime?
+  externalDataImpactNotes   String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  createdBy                 String
+  updatedBy                 String?
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  opportunityProject        OpportunityProject @relation(fields: [opportunityProjectId], references: [id], onDelete: Cascade)
+  creator                   User      @relation("CapturePlanCreatedBy", fields: [createdBy], references: [id])
+  updater                   User?     @relation("CapturePlanUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("capture_plans")
+  @@schema("public")
+}
+
+model Proposal {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  opportunityProjectId      String
+  proposalTitle             String
+  status                    String    @default("draft") // "draft", "in_progress", "review", "submitted", "awarded", "not_awarded"
+  proposalManager           String?
+  teamMembers               String[]  @default([])
+  submissionDate            DateTime?
+  complianceMatrix          Json?
+  reviewStages              Json?
+  finalSubmittalDate        DateTime?
+  externalDeadlineSync      DateTime?
+  amendmentImpactLog        Json?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  createdBy                 String
+  updatedBy                 String?
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  opportunityProject        OpportunityProject @relation(fields: [opportunityProjectId], references: [id], onDelete: Cascade)
+  creator                   User      @relation("ProposalCreatedBy", fields: [createdBy], references: [id])
+  updater                   User?     @relation("ProposalUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("proposals")
+  @@schema("public")
+}
+
+// ================================
+// ACTIVITY MANAGEMENT
+// ================================
+
+model Activity {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  entityType                String    // "opportunity_project", "contact", "organization", "capture_plan", "proposal"
+  entityId                  String
+  activityType              String    // "call", "meeting", "email", "task", "milestone", "note"
+  subject                   String
+  description               String?
+  activityDate              DateTime
+  completedDate             DateTime?
+  priority                  String    @default("medium") // "low", "medium", "high", "urgent"
+  status                    String    @default("pending") // "pending", "in_progress", "completed", "cancelled"
+  assignedToId              String?
+  contactId                 String?
+  triggeredByExternalChange Boolean   @default(false)
+  externalChangeReference   String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  createdBy                 String
+  updatedBy                 String?
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignedTo                User?     @relation("ActivityAssignedTo", fields: [assignedToId], references: [id])
+  contact                   Contact?  @relation(fields: [contactId], references: [id])
+  creator                   User      @relation("ActivityCreatedBy", fields: [createdBy], references: [id])
+  updater                   User?     @relation("ActivityUpdatedBy", fields: [updatedBy], references: [id])
+
+  @@map("activities")
+  @@schema("public")
+}
+
+// ================================
+// POLLING AND CHANGE MANAGEMENT
+// ================================
+
+model PollingConfiguration {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  opportunityProjectId      String?
+  externalSourceId          String
+  pollingFrequency          Int       @default(60) // minutes
+  isActive                  Boolean   @default(true)
+  priorityLevel             String    @default("normal") // "low", "normal", "high"
+  lastPollTimestamp         DateTime?
+  nextPollTimestamp         DateTime?
+  consecutiveErrors         Int       @default(0)
+  maxRetries                Int       @default(3)
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  createdBy                 String
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  opportunityProject        OpportunityProject? @relation(fields: [opportunityProjectId], references: [id])
+  externalSource            ExternalOpportunitySource @relation(fields: [externalSourceId], references: [id])
+
+  @@map("polling_configurations")
+  @@schema("public")
+}
+
+model ExternalDataChange {
+  id                        String    @id @default(cuid())
+  opportunityProjectId      String
+  changeTimestamp           DateTime  @default(now())
+  changedFields             String[]
+  previousValues            Json?
+  newValues                 Json?
+  changeType                String    // "update", "amendment", "status_change", "document_added"
+  impactLevel               String    // "critical", "important", "informational"
+  notificationSent          Boolean   @default(false)
+  acknowledgedBy            String?
+  acknowledgedAt            DateTime?
+  createdAt                 DateTime  @default(now())
+
+  // Relations
+  opportunityProject        OpportunityProject @relation(fields: [opportunityProjectId], references: [id], onDelete: Cascade)
+
+  @@map("external_data_changes")
+  @@schema("public")
+}
+
+model ApiIntegrationLog {
+  id                        String    @id @default(cuid())
+  externalSourceId          String
+  opportunityProjectId      String?
+  apiCallTimestamp          DateTime  @default(now())
+  endpointCalled            String
+  httpStatus                Int
+  requestPayload            Json?
+  responsePayload           Json?
+  errorMessage              String?
+  processingTimeMs          Int?
+  rateLimitRemaining        Int?
+  createdAt                 DateTime  @default(now())
+
+  // Relations
+  externalSource            ExternalOpportunitySource @relation(fields: [externalSourceId], references: [id])
+
+  @@map("api_integration_logs")
+  @@schema("public")
+}
+
+// ================================
+// AUDIT AND COMPLIANCE
+// ================================
+
+model AuditLog {
+  id                        String    @id @default(cuid())
+  tenantId                  String
+  userId                    String?
+  sessionId                 String?
+  actionType                String    // "create", "read", "update", "delete", "export", "sync", "login", "logout"
+  entityType                String?
+  entityId                  String?
+  operationDescription      String
+  ipAddress                 String?
+  userAgent                 String?
+  timestampUtc              DateTime  @default(now())
+  beforeValues              Json?
+  afterValues               Json?
+  changeReason              String?
+  accessGranted             Boolean   @default(true)
+  permissionUsed            String?
+  riskLevel                 String    @default("low") // "low", "medium", "high", "critical"
+  createdAt                 DateTime  @default(now())
+
+  // Relations
+  tenant                    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                      User?     @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+  @@schema("audit")
+}
+
+model ChangeHistory {
+  id                        String    @id @default(cuid())
+  entityType                String
+  entityId                  String
+  changeTimestamp           DateTime  @default(now())
+  changedByUserId           String?
+  changedBySystemProcess    String?
+  fieldName                 String
+  oldValue                  String?
+  newValue                  String?
+  changeSource              String    // "user_action", "external_sync", "system_process"
+  changeCategory            String    // "user_action", "external_sync", "system_process"
+  changeImpactLevel         String    @default("informational") // "critical", "important", "informational"
+  notificationTriggered     Boolean   @default(false)
+  parentChangeId            String?   // For related changes
+  createdAt                 DateTime  @default(now())
+
+  // Relations
+  parentChange              ChangeHistory? @relation("ChangeHierarchy", fields: [parentChangeId], references: [id])
+  childChanges              ChangeHistory[] @relation("ChangeHierarchy")
+
+  @@map("change_history")
+  @@schema("audit")
+}
+
+model PermissionAudit {
+  id                        String    @id @default(cuid())
+  userId                    String
+  resourceType              String
+  resourceId                String?
+  permissionChecked         String
+  permissionGranted         Boolean
+  timestamp                 DateTime  @default(now())
+  roleUsed                  String?
+  explicitPermission        String?
+  denialReason              String?
+  createdAt                 DateTime  @default(now())
+
+  // Relations
+  user                      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("permission_audit")
+  @@schema("audit")
+}
+
+// ================================
+// INDEXES FOR PERFORMANCE
+// ================================
+
+// Opportunity Projects
+// @@index([tenantId, projectStatus])
+// @@index([tenantId, pipelineStage])
+// @@index([tenantId, assignedCaptureManagerId])
+// @@index([externalSourceId, externalOpportunityId])
+// @@index([lastSyncedAt])
+
+// External Opportunity Data
+// @@index([opportunityProjectId, isCurrentVersion])
+// @@index([dataSnapshotTimestamp])
+
+// Documents
+// @@index([tenantId, documentType])
+// @@index([opportunityProjectId])
+// @@index([uploadedBy])
+
+// Activities
+// @@index([tenantId, entityType, entityId])
+// @@index([assignedToId])
+// @@index([activityDate])
+
+// Audit Logs
+// @@index([tenantId, timestampUtc])
+// @@index([userId, timestampUtc])
+// @@index([actionType, timestampUtc])
+
+// Change History
+// @@index([entityType, entityId])
+// @@index([changeTimestamp])
+// @@index([changedByUserId])
